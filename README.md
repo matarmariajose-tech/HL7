@@ -1,12 +1,12 @@
 # Envío de inmunizaciones HL7
 
-Consola en C# y .NET 8 que envía archivos VXU, correlaciona los ACK y registra todas las transacciones. Incluye un servicio HTTP local para demostrar aceptación, observaciones, rechazo e incertidumbre sin enviar datos a terceros.
+Aplicación de consola en C# y .NET 8 para enviar mensajes VXU, interpretar los acuses del registro y consultar el resultado de cada transacción. Utiliza los endpoints `echo` y `send` de la API de pruebas.
 
-SDK utilizado: **8.0.426**, fijado en `global.json`. Runtime: .NET 8. La demo automatizada requiere Python 3.10 o superior; la aplicación y los tests no requieren Python.
+## Ejecutar y probar
 
-## Ejecución local
+Requisitos: SDK **8.0.426**, fijado en `global.json`. La demo automatizada también requiere Python 3.10 o superior; la aplicación y las pruebas se ejecutan con .NET.
 
-Desde la raíz del repositorio, con el SDK instalado:
+Desde la raíz del repositorio:
 
 ```bash
 dotnet restore Immunization.sln --locked-mode
@@ -15,157 +15,99 @@ dotnet test Immunization.sln -c Release --no-build
 python3 scripts/demo.py
 ```
 
-En Windows se puede usar `python` en lugar de `python3`. La demo inicia el simulador en el puerto 5080, genera ocho entradas sintéticas temporales, ejecuta la consola, verifica el informe y detiene el servidor. El puerto debe estar libre.
+La suite contiene **89 pruebas**. La demo inicia un servicio local en el puerto 5080, genera ocho mensajes sintéticos, verifica sus resultados y detiene el servicio. El resultado esperado es: **2 aceptados, 1 observado, 1 rechazado y 4 sin confirmación**. Los escenarios están definidos en `demo/Immunization.Demo/appsettings.json`.
 
-Resultado esperado de la demo: **2 Accepted, 1 Observed, 1 Rejected y 4 Unknown**. Son respuestas simuladas, no resultados del registro externo. La secuencia se configura en `demo/Immunization.Demo/appsettings.json`.
+Al finalizar se imprimen las rutas del diario JSONL y del informe HTML. El informe funciona sin servidor: incluye filtros, búsqueda y el detalle de cada intento. La demo aparece identificada como **Simulación local**.
 
-Para usar los ocho archivos originales, copiarlos a `samples/` sin alterar sus bytes:
+## Usar la API de pruebas
 
-```bash
-python3 scripts/demo.py --input samples
-```
+El contrato v1 consultado está en [docs/swagger-contract.json](docs/swagger-contract.json).
 
-Los archivos originales y los informes se excluyen de Git. La demo genera ocho mensajes sintéticos desde una plantilla, con identificadores e integridad propios para cada archivo. Puede ejecutarse después de clonar el repositorio.
-
-## Ejecución manual de la demo
-
-Terminal 1:
-
-```bash
-dotnet run --project demo/Immunization.Demo -c Release --no-build
-```
-
-Terminal 2:
-
-```bash
-dotnet run --project src/Immunization.Cli -c Release --no-build -- run config/demo.json samples reports/manual.jsonl
-```
-
-El archivo de informe debe ser nuevo. La consola ejecuta primero `echo` con las credenciales de transferencia y exige `echoBack = "echo"`; si falla, no envía mensajes. Este control valida el servicio de echo, no la aceptación de inmunizaciones.
-
-Para la ejecución manual, definir las variables de transferencia con los datos sintéticos de `demo/Immunization.Demo/appsettings.json`. El script automatizado las configura exclusivamente para su proceso hijo.
-
-## Servicio externo
-
-El contrato se obtuvo del Swagger autenticado v1. La aplicación utiliza exclusivamente:
-
-| Operación | Método y ruta |
+| Operación | Endpoint |
 | --- | --- |
 | Echo | `POST /floridashot/api/v1/FloridaShots/echo` |
 | Envío | `POST /floridashot/api/v1/FloridaShots/send` |
 
-Swagger: https://test-prxcloud.praxisemr.com/floridashot/swagger/index.html
+Preparar la configuración y copiar los ocho archivos originales a `samples/`:
 
-Una copia acotada del contrato de estas operaciones está en [swagger-contract.json](docs/swagger-contract.json). Los resultados de validación están en [validation.md](docs/validation.md).
+```bash
+cp config/live.example.json config/live.json
+mkdir -p samples
+```
 
-1. Copiar `config/live.example.json` a `config/live.json`, archivo ignorado por Git.
-2. Colocar los ocho originales en `samples/`.
-3. Verificar conectividad HTTPS al host configurado.
-4. Configurar las variables siguientes mediante el almacén de secretos o la sesión local. `.env.example` documenta nombres; la aplicación **no carga archivos `.env` automáticamente**.
+Configurar estas variables en la sesión o mediante un gestor de secretos:
 
-| Variable | Uso |
+| Variable | Función |
 | --- | --- |
 | `REGISTRY_API_USER` | Usuario de HTTP Basic |
 | `REGISTRY_API_PASSWORD` | Contraseña de HTTP Basic |
-| `REGISTRY_CLINIC_OID` | Clínica para la solicitud de transferencia |
+| `REGISTRY_CLINIC_OID` | Identificador de clínica en la solicitud de transferencia |
 | `REGISTRY_TRANSFER_USER` | Usuario de transferencia |
 | `REGISTRY_TRANSFER_PASSWORD` | Contraseña de transferencia |
 
-Para una sesión Bash local se pueden ingresar sin dejar los valores en el historial:
+`.env.example` enumera los nombres; la aplicación no carga archivos `.env` automáticamente. Las credenciales HTTP, las credenciales de transferencia y la identidad de la clínica son tipos separados. El OID de la solicitud no reemplaza los identificadores clínicos dentro del HL7.
+
+Para enviar el lote:
 
 ```bash
-read -r -p 'API user: ' REGISTRY_API_USER
-read -r -s -p 'API password: ' REGISTRY_API_PASSWORD; printf '\n'
-read -r -p 'Clinic OID: ' REGISTRY_CLINIC_OID
-read -r -p 'Transfer user: ' REGISTRY_TRANSFER_USER
-read -r -s -p 'Transfer password: ' REGISTRY_TRANSFER_PASSWORD; printf '\n'
-export REGISTRY_API_USER REGISTRY_API_PASSWORD REGISTRY_CLINIC_OID REGISTRY_TRANSFER_USER REGISTRY_TRANSFER_PASSWORD
+dotnet run --project src/Immunization.Cli -c Release --no-build -- run config/live.json samples reports/envio-01.jsonl
 ```
 
-Una vez confirmado el contrato:
+La aplicación verifica primero `echoBack = "echo"`. Cada `run` realiza nuevos envíos; el nombre del informe debe ser nuevo. Ante un resultado incierto, consultar su estado con el operador del registro antes de reenviar.
 
-```bash
-dotnet run --project src/Immunization.Cli -c Release --no-build -- echo config/live.json samples reports/unused.jsonl
-dotnet run --project src/Immunization.Cli -c Release --no-build -- run config/live.json samples reports/live-01.jsonl
-```
+## Interpretación de resultados
 
-Un nuevo `run` vuelve a enviar los archivos. El programa no reintenta envíos automáticamente. Si hubo incertidumbre, reconciliar con el operador del registro antes de reenviar. No editar MSH-10 para forzar un reintento sin una decisión explícita sobre idempotencia.
-
-### Contrato de transporte
-
-El adaptador utiliza DTO tipados y nombres JSON explícitos del Swagger: `clinicOID`, `username`, `password`, `hl7`, `nameHl7` y `dateSend`. `hl7` es un arreglo de segmentos; `dateSend` se toma del reloj UTC. Los bytes del archivo original no se alteran. El sobre de respuesta contiene `messageId` y `result`; el segundo se interpreta como ACK, y el identificador del servicio se conserva para seguimiento.
-
-Echo recibe `user` y `password` y valida `echoBack`. Tanto echo como send usan HTTP Basic además de las credenciales de transferencia en el cuerpo. No se concatenan manualmente documentos JSON ni se interpretan cadenas arbitrarias como ACK.
-
-Las rutas, URL base, timeout y límites de tamaño son configuración. `EnvironmentName`, `IsSimulation` y `ReportTimeZoneId` definen el contexto del informe; la zona horaria predeterminada es `America/Argentina/Buenos_Aires` y las fechas UTC originales se conservan para auditoría. `TimeoutSeconds`, `MaxInputBytes` y `MaxResponseBytes` limitan tiempo y tamaño. HTTPS es obligatorio fuera de loopback. No se siguen redirecciones ni se desactiva la validación TLS. La configuración rechaza rutas ajenas a echo y send.
-
-## Clasificación
-
-Se usa exclusivamente la respuesta del servicio; no se deducen rechazos a partir de los datos de vacunación.
+La clasificación depende de la respuesta del servicio. Un HTTP exitoso, por sí solo, no confirma la aceptación de una inmunización.
 
 | Respuesta | Resultado |
 | --- | --- |
-| ACK correlacionado, MSA-1 `AA`, sin ERR | Accepted |
-| `AA` con ERR de observación | Observed |
-| `AE` o `AR` correlacionado | Rejected |
-| `AA` con ERR severidad `E` o `F` | Unknown: respuesta contradictoria |
-| `CA`, `CE`, `CR` | Unknown: acuse de commit, no aceptación de aplicación |
-| MSA-2 distinto, ausente o múltiples MSA | Unknown |
-| Error HTTP, timeout, fallo de transporte o cuerpo inválido | Unknown |
+| `AA` correlacionado, sin hallazgos ERR | Aceptado |
+| `AA` con observaciones | Con observaciones |
+| `AE` o `AR` correlacionado | Rechazado |
+| Error de transporte, respuesta inválida o sin correlación | Sin confirmación |
+| Acuse de commit (`CA`, `CE`, `CR`) o respuesta contradictoria | Sin confirmación |
 
-Los motivos de MSA-3 y los detalles ERR-2, ERR-3, ERR-4, ERR-7 y ERR-8 quedan en el informe restringido. La consola solo muestra identificadores internos y conteos. El parser soporta delimitadores declarados y separadores CR, LF y CRLF; es un lector del subconjunto de ACK utilizado, no un validador completo HL7 v2.5.1.
+MSA-2 debe coincidir con MSH-10. Los ocho originales comparten MSH-10: cada intento recibe un UUID propio y conserva el hash SHA-256 del archivo. El identificador devuelto por la API se registra por separado. No se deduplican archivos ni se modifican mensajes para obtener una aceptación.
 
-Los ocho originales comparten MSH-10. Cada archivo conserva ese valor y recibe un UUID de transacción distinto y un hash SHA-256. Los envíos son secuenciales: la respuesta HTTP y MSA-2 permiten correlacionar cada intento sin fusionar archivos con el mismo identificador clínico.
+## Auditoría y diagnóstico
 
-## Informe y recuperación
+Cada envío deja un evento `Pending` persistido antes de llamar al servicio y un `Completed` al registrar el resultado. El lector comprueba que el cierre corresponda al mismo intento, archivo, identificador y fecha de inicio. Si falla la persistencia, el lote se detiene.
 
-`reports/*.jsonl` conserva el contexto del lote y contiene un evento `Pending` persistido **antes** del envío y un evento `Completed` con resultado, motivo, hallazgos y timestamps UTC. Cada línea es JSON independiente. El archivo se crea con acceso exclusivo de creación y permisos `0600` en Unix; los ACL de Windows dependen del directorio del usuario.
+Un intento sin cierre se muestra como **Sin confirmación**. No hay reintentos automáticos ni garantía de entrega exactamente una vez. Un timeout y una cancelación del usuario se registran como causas distintas.
 
-Además del diario JSONL, cada ejecución completa genera un informe HTML restringido en `<informe.jsonl>.html`, con archivo, resultado, motivo, hallazgos y trazabilidad. El informe presenta un resumen del lote, una tabla con estado y motivo por archivo, búsqueda y filtros por resultado. Los identificadores, fechas UTC, hashes y hallazgos originales quedan en detalles desplegables. Los estados y diagnósticos internos se presentan en español; los mensajes originales del registro se conservan sin traducir ni reinterpretar. El HTML incluye sus estilos y comportamiento, no requiere servidor ni conexiones externas y permite imprimir el informe completo.
+Los informes conservan los motivos y hallazgos del registro. Las respuestas nuevas también dejan metadatos de diagnóstico: estado HTTP, tipo de contenido, tamaño, huella SHA-256 y formato aparente de `result`. Un error de contrato identifica el campo conocido que falló. Estos datos no incluyen el cuerpo completo de la respuesta ni permiten reconstruirlo.
 
-El contenido del servicio se escapa antes de generar HTML. La demo se identifica explícitamente como **Simulación local**. Cada diario nuevo comienza con un evento `Batch` que conserva el entorno, su carácter simulado y la zona horaria de presentación. Los diarios anteriores siguen siendo legibles; si no contienen ese contexto, el informe muestra «Origen no registrado». La ausencia de metadatos no se interpreta como una ejecución real.
-
-Para generar una vista de un diario existente sin conectarse a la API:
+Para generar otra vista de un diario existente, sin llamadas a la API:
 
 ```bash
-dotnet run --project src/Immunization.Cli -c Release --no-build -- report reports/live-01.jsonl reports/resumen.html
+dotnet run --project src/Immunization.Cli -c Release --no-build -- report reports/envio-01.jsonl reports/resumen.html
 ```
 
-La lectura verifica que cada cierre corresponde al intento registrado. Un diario truncado genera un error explícito; no se descarta silenciosamente la evidencia. Los intentos pendientes aparecen como `Unknown · Pending`.
+Los archivos originales, las credenciales y los informes se excluyen de Git. Los informes se crean con permisos `0600` en Unix. El HTML escapa los datos del servicio y conserva las fechas UTC originales junto con su presentación en la zona horaria configurada.
 
-Un `Pending` sin `Completed` después de una interrupción indica entrega incierta. No implica que el registro no recibió el mensaje. No existe recuperación automática ni garantía de exactly-once. Los errores de persistencia detienen el lote para no continuar sin auditoría. Ctrl+C registra el intento activo y detiene los siguientes; los archivos que no comenzaron no se presentan como enviados.
+## Organización
 
-Códigos de salida:
-
-| Código | Significado |
+| Proyecto | Responsabilidad |
 | --- | --- |
-| 0 | Todos aceptados, o echo exitoso |
-| 1 | Lote completo con observaciones o rechazos, sin incertidumbre |
-| 2 | Echo fallido, resultado desconocido o lote interrumpido |
-| 3 | Error de ejecución/configuración/persistencia |
-| 64 | Uso inválido |
+| `Domain` | Resultados, motivos e interpretación de ACK |
+| `Application` | Orquestación del lote y contratos de envío y auditoría |
+| `Infrastructure` | Adaptador HTTP, identidades, archivos, diario e informes |
+| `Cli` | Configuración y composición de los componentes |
+| `Demo` | Simulador HTTP con escenarios reproducibles |
+| `Tests` | Pruebas de dominio, contrato, fallos y persistencia |
 
-La demo automatizada espera el código 2 del lote simulado y finaliza con 0 únicamente si valida todas sus comprobaciones.
+La aplicación recibe fallos de entrega definidos por su puerto; las excepciones HTTP se traducen en infraestructura. El cliente HTTP se reutiliza durante el lote y un único plazo cubre el envío y la lectura de cada respuesta. HTTPS es obligatorio fuera del simulador local y las redirecciones están deshabilitadas.
 
-## Arquitectura y validación
+El procesamiento es secuencial y trabaja con lotes acotados. La configuración permite ajustar el máximo de archivos, bytes por archivo y lote, tamaño de respuesta y timeout. Los valores predeterminados son 1 MiB por archivo, 32 MiB de entrada por lote, 1000 archivos, 1 MiB por respuesta y 30 segundos por solicitud. La demo utiliza un timeout menor. La entrada completa se valida antes de iniciar los envíos; el límite también se comprueba durante la lectura.
 
-Ver [arquitectura](docs/architecture.md) y [evidencia de ejecución](docs/validation.md).
+Para un volumen sostenido, el siguiente cambio sería lectura por flujo y almacenamiento transaccional detrás del puerto de auditoría. Concurrencia y reintentos requieren acordar primero idempotencia con el proveedor.
 
-- `Domain`: resultados e interpretación de ACK, sin HTTP ni almacenamiento.
-- `Application`: orquestación secuencial y puertos de transporte y auditoría.
-- `Infrastructure`: HTTP, configuración, entrada de archivos y diario JSONL.
-- `Cli`: composición y presentación de resultados.
-- `Demo`: servidor HTTP independiente con escenarios configurables.
-- `Tests`: pruebas de dominio, transporte, aislamiento de transacciones y persistencia.
+## Validación y alcance
 
-Los lockfiles de NuGet se versionan. CI restaura en modo bloqueado, compila con advertencias como errores, ejecuta tests y demo. Los archivos clínicos originales y las credenciales no forman parte del repositorio.
+Se ejecutó un lote real de ocho mensajes: **5 rechazos `AE` y 3 resultados sin confirmación**. En esos tres casos no pudo interpretarse un ACK válido. La versión utilizada en aquel envío no conservaba los metadatos de respuesta incorporados después; su causa exacta no puede reconstruirse desde el diario. No se repitieron esos envíos.
 
-## Contenedor opcional
+Las pruebas y la demo se ejecutan en CI. El historial de ejecución y los límites conocidos están en [docs/validation.md](docs/validation.md); las decisiones de diseño, en [docs/architecture.md](docs/architecture.md). El lector implementa el subconjunto de ACK necesario para este flujo, no una validación completa de HL7 v2.5.1.
 
-```bash
-docker build -t immunization-cli .
-```
+Códigos de salida: `0` aceptados o echo correcto; `1` observaciones o rechazos; `2` resultados inciertos, interrupción o echo fallido; `3` error de ejecución; `64` argumentos inválidos. La demo valida deliberadamente casos inciertos y termina con `0` si sus comprobaciones pasan.
 
-El contenedor ejecuta la CLI como usuario no privilegiado. Montar configuración y entradas en solo lectura y un directorio de informes escribible por ese usuario. Inyectar variables desde un almacén de secretos, sin incluirlas en la imagen. La construcción del contenedor es una alternativa de despliegue y se informa separadamente de las pruebas locales.
-
-La imagen Docker todavía no fue validada en este entorno: el registro oficial redirige a `westus.data.mcr.microsoft.com` y la política de red rechazó esa descarga con HTTP 403. El flujo nativo de .NET está validado.
+El Dockerfile es opcional. Su construcción quedó bloqueada por HTTP 403 en una descarga del registro oficial; la imagen todavía no está validada. El flujo nativo con .NET está verificado.

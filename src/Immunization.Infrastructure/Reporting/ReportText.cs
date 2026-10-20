@@ -53,6 +53,7 @@ internal static class ReportText
             AssessmentReason.ContradictoryAcknowledgment => "El acuse indica aceptación, pero también contiene errores.",
             AssessmentReason.CommitAcknowledgmentOnly => "Se confirmó la recepción, pero no el procesamiento del mensaje.",
             AssessmentReason.UnsupportedAcknowledgmentCode => "El servicio devolvió un código de acuse no reconocido.",
+            AssessmentReason.RequestTimedOut => "El servicio no confirmó el resultado dentro del tiempo permitido.",
             AssessmentReason.RequestCancelled => "La solicitud se canceló antes de confirmar el resultado.",
             AssessmentReason.TransportFailure => "No se pudo completar la comunicación con el servicio.",
             AssessmentReason.ResponseStreamFailure => "Se interrumpió la lectura de la respuesta.",

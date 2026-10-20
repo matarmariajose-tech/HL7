@@ -6,7 +6,7 @@ Validación realizada el 20 de octubre de 2026 en Linux x64, con SDK .NET 8.0.42
 
 - Restauración NuGet en modo `--locked-mode`: correcta.
 - Compilación Release de los seis proyectos: cero errores y cero advertencias.
-- Suite xUnit: **63 pruebas aprobadas, 0 fallidas, 0 omitidas**.
+- Suite xUnit: **89 pruebas aprobadas, 0 fallidas, 0 omitidas**.
 - Demo HTTP autocontenida: ocho transacciones verificadas y finalización correcta del servidor.
 - Demo con los ocho originales: ocho transacciones verificadas; los hashes de los archivos no cambiaron.
 
@@ -17,6 +17,12 @@ Las pruebas incluyen correlación, delimitadores, clasificación de ACK, contrad
 El informe se rediseñó con tabla de resultados, filtros, búsqueda y auditoría desplegable. Se verificaron la localización de diagnósticos internos, los permisos del archivo y el escape de contenido del servicio. El contexto de simulación sobrevive a la lectura del diario. La revisión con Chromium comprobó ocho filas, filtros, búsqueda, expansión del detalle, estado vacío y ausencia de solicitudes externas. Los registros anteriores mantienen compatibilidad sin inventar su origen.
 
 La demo genera mensajes sintéticos con identificadores propios. Este cambio no modifica los ocho archivos originales ni reejecuta el lote externo documentado a continuación.
+
+## Robustez del flujo
+
+La revisión posterior agregó pruebas de separación entre identidad HTTP, transferencia y clínica; límites de bytes y cantidad de archivos; respuestas nulas, vacías, texto, JSON y marcado; huellas de respuesta; errores de contrato; cancelación previa; lectura de cuerpo bloqueada; fallos inesperados y cierres de auditoría inconsistentes.
+
+Las huellas y la forma de las respuestas se verificaron con respuestas controladas. El lote real anterior no se reenviará para generar esos metadatos retroactivamente.
 
 ## API externa real
 

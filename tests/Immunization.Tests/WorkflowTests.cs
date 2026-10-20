@@ -162,7 +162,7 @@ public sealed class WorkflowTests
     {
         public int Calls { get; private set; }
         public Task<Assessment> SendAsync(Submission submission, CancellationToken cancellationToken)
-        { Calls++; throw new HttpRequestException(); }
+        { Calls++; throw new DeliveryException(DeliveryFailure.ConnectionFailed, new IOException()); }
     }
     private sealed class MemoryJournal : ITransactionJournal
     {

@@ -9,5 +9,7 @@
   "AllowLoopbackHttp": true,
   "EnvironmentName": "Simulador local",
   "IsSimulation": true,
-  "ReportTimeZoneId": "America/Argentina/Buenos_Aires"
+  "ReportTimeZoneId": "America/Argentina/Buenos_Aires",
+  "MaxBatchBytes": 33554432,
+  "MaxFiles": 1000
 }

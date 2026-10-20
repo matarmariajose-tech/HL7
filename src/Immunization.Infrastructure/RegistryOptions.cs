@@ -12,6 +12,8 @@ public sealed record RegistryOptions
     public string ReportTimeZoneId { get; init; } = "America/Argentina/Buenos_Aires";
     public int TimeoutSeconds { get; init; } = 30;
     public long MaxInputBytes { get; init; } = 1048576;
+    public long MaxBatchBytes { get; init; } = 33554432;
+    public int MaxFiles { get; init; } = 1000;
     public int MaxResponseBytes { get; init; } = 1048576;
     public bool UseBasicAuthentication { get; init; } = true;
     public bool AllowLoopbackHttp { get; init; }
@@ -34,7 +36,7 @@ public sealed record RegistryOptions
         if (!options.EchoPath.EndsWith("/echo", StringComparison.OrdinalIgnoreCase) && options.EchoPath != "echo" ||
             !options.SendPath.EndsWith("/send", StringComparison.OrdinalIgnoreCase) && options.SendPath != "send")
             throw new InvalidDataException("Only echo and send endpoints are allowed.");
-        if (options.TimeoutSeconds is < 1 or > 300 || options.MaxInputBytes < 1 || options.MaxResponseBytes < 1)
+        if (options.TimeoutSeconds is < 1 or > 300 || options.MaxInputBytes < 1 || options.MaxResponseBytes < 1 || options.MaxBatchBytes < 1 || options.MaxFiles < 1)
             throw new InvalidDataException("Invalid resource limits.");
         try { _ = TimeZoneInfo.FindSystemTimeZoneById(options.ReportTimeZoneId); }
         catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)

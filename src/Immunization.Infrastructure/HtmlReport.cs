@@ -97,6 +97,18 @@ public static class HtmlReport
         Entry(html, "Fin", LocalTime(receipt.CompletedAt, timezone));
         Entry(html, "Fechas UTC originales", $"{receipt.StartedAt:O} → {receipt.CompletedAt:O}", true);
         Entry(html, "SHA-256 del archivo", receipt.Sha256, true);
+        if (receipt.Assessment.HttpStatusCode is { } httpStatus)
+            Entry(html, "Estado HTTP", httpStatus.ToString(CultureInfo.InvariantCulture));
+        if (receipt.Assessment.Evidence is { } evidence)
+        {
+            Entry(html, "Tipo de contenido", evidence.MediaType ?? "No informado");
+            if (evidence.ContractField is not null) Entry(html, "Campo de contrato inválido", evidence.ContractField);
+            Entry(html, "Tamaño de la respuesta", evidence.BodyBytes.ToString("N0", Culture) + " bytes");
+            Entry(html, "Formato aparente de result", KindLabel(evidence.ResultKind));
+            Entry(html, "Longitud de result", evidence.ResultCharacters?.ToString("N0", Culture) ?? "No disponible");
+            Entry(html, "SHA-256 de la respuesta HTTP", evidence.BodySha256, true);
+            if (evidence.ResultSha256 is not null) Entry(html, "SHA-256 de result", evidence.ResultSha256, true);
+        }
         html.Append("</dl><p class=\"diagnostic\"><strong>Diagnóstico original</strong>")
             .Append(Encode(receipt.Assessment.Reason)).Append("</p>");
         if (receipt.Assessment.Findings is { Count: > 0 } findings)
@@ -144,6 +156,15 @@ public static class HtmlReport
     private static string Duration(TimeSpan duration) => duration.TotalSeconds < 1
         ? Math.Max(0, duration.TotalMilliseconds).ToString("N0", Culture) + " ms"
         : duration.TotalSeconds.ToString("N2", Culture) + " s";
+    private static string KindLabel(ResponseKind kind) => kind switch
+    {
+        ResponseKind.Empty => "Vacío",
+        ResponseKind.Missing => "Ausente o nulo",
+        ResponseKind.Hl7Like => "Inicio de mensaje HL7",
+        ResponseKind.JsonLike => "Estructura JSON aparente",
+        ResponseKind.Markup => "Marcado XML/HTML",
+        _ => "Texto"
+    };
     private static string Search(Receipt receipt) => $"{receipt.FileName} {receipt.Id} {receipt.MessageId} {receipt.Assessment.ServiceMessageId}";
     private static string Search(PendingTransaction transaction) => $"{transaction.FileName} {transaction.Id} {transaction.MessageId}";
     private static string Encode(string value) => WebUtility.HtmlEncode(value);

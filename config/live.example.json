@@ -9,5 +9,7 @@
   "AllowLoopbackHttp": false,
   "EnvironmentName": "API de pruebas",
   "IsSimulation": false,
-  "ReportTimeZoneId": "America/Argentina/Buenos_Aires"
+  "ReportTimeZoneId": "America/Argentina/Buenos_Aires",
+  "MaxBatchBytes": 33554432,
+  "MaxFiles": 1000
 }

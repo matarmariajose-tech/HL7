@@ -30,14 +30,20 @@ public static class JournalReader
                     break;
                 case "Pending":
                     var started = root.Deserialize<PendingTransaction>(options) ?? throw new InvalidDataException("Invalid pending event.");
+                    if (started.Id == Guid.Empty || string.IsNullOrWhiteSpace(started.FileName) || string.IsNullOrWhiteSpace(started.Sha256))
+                        throw new InvalidDataException("Pending event identity is incomplete.");
                     if (completedIds.Contains(started.Id) || !pending.TryAdd(started.Id, started))
                         throw new InvalidDataException("Duplicate transaction event.");
                     break;
                 case "Completed":
                     var receipt = root.GetProperty("Receipt").Deserialize<Receipt>(options) ?? throw new InvalidDataException("Invalid completed event.");
-                    if (!pending.Remove(receipt.Id, out var source) || !completedIds.Add(receipt.Id) ||
-                        source.Sha256 != receipt.Sha256 || source.FileName != receipt.FileName || source.MessageId != receipt.MessageId)
+                    if (!pending.TryGetValue(receipt.Id, out var source) || completedIds.Contains(receipt.Id) ||
+                        source.Sha256 != receipt.Sha256 || source.FileName != receipt.FileName || source.MessageId != receipt.MessageId ||
+                        source.StartedAt != receipt.StartedAt || receipt.Assessment is null || !Enum.IsDefined(receipt.Assessment.Outcome) ||
+                        !Enum.IsDefined(receipt.Assessment.ReasonCode))
                         throw new InvalidDataException("Completed event does not match a pending transaction.");
+                    pending.Remove(receipt.Id);
+                    completedIds.Add(receipt.Id);
                     completed.Add(receipt);
                     break;
                 default: throw new InvalidDataException("Unsupported journal event.");

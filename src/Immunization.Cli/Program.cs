@@ -28,7 +28,7 @@ try
 {
     var options = RegistryOptions.Load(args[1]);
     var credentials = RegistryCredentials.Load();
-    using var client = HttpRegistryGateway.CreateClient(options);
+    using var client = HttpRegistryGateway.CreateClient(options, options.UseBasicAuthentication ? ApiCredentials.Load() : null);
     var gateway = new HttpRegistryGateway(client, options, credentials, new AcknowledgmentInterpreter(), TimeProvider.System);
     if (!await gateway.EchoAsync(cancellation.Token))
     {
@@ -37,7 +37,7 @@ try
     }
     Console.WriteLine("Echo: service returned the documented echoBack response.");
     if (args[0] == "echo") return 0;
-    var submissions = await InputReader.ReadAsync(args[2], options.MaxInputBytes, cancellation.Token);
+    var submissions = await InputReader.ReadAsync(args[2], options.MaxInputBytes, cancellation.Token, options.MaxBatchBytes, options.MaxFiles);
     var context = new ReportContext(options.EnvironmentName, options.IsSimulation, options.ReportTimeZoneId, new Uri(options.BaseUrl).Host);
     using var journal = new JsonJournal(args[3], context);
     var receipts = await new BatchProcessor(gateway, journal, TimeProvider.System).RunAsync(submissions, cancellation.Token);
