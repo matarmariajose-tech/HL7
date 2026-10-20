@@ -1,4 +1,4 @@
-# Envío de vacunaciones HL7
+# Envío de Inmunizaciones HL7
 
 Aplicación de consola en C# y .NET 8 que envía un lote de mensajes VXU a la API de pruebas y genera un informe por archivo: aceptado, observado, rechazado o sin confirmación. La clasificación se obtiene de la respuesta del servicio.
 
