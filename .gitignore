@@ -1,0 +1,12 @@
+bin/
+obj/
+reports/
+.env
+.env.*
+!.env.example
+config/live.json
+.secrets/
+artifacts/
+.vs/
+.idea/
+samples/*.hl7
