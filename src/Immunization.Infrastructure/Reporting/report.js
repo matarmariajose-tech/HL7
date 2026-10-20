@@ -26,7 +26,10 @@
     for (const link of document.querySelectorAll('[data-audit]')) {
         link.addEventListener('click', () => {
             const detail = document.getElementById(link.dataset.audit);
-            if (detail) detail.open = true;
+            if (detail) {
+                detail.open = true;
+                detail.querySelector('summary')?.focus({preventScroll: true});
+            }
         });
     }
     document.querySelector('[data-print]').addEventListener('click', () => window.print());

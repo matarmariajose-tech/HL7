@@ -99,6 +99,9 @@ public sealed class ReportTests
         Assert.DoesNotContain("<svg onload", html);
         Assert.DoesNotContain("<iframe>", html);
         Assert.Contains("&lt;svg", html);
+        Assert.Contains(">Ver detalle</a>", html);
+        Assert.Contains("aria-controls=\"tx-", html);
+        Assert.DoesNotContain("class=\"transaction\"", html);
     }
 
     [Fact]

@@ -24,13 +24,13 @@ public static class HtmlReport
         if (times.Length > 0) html.Append(Encode(LocalTime(times.Min(), timezone))).Append(" · ");
         html.Append(total).Append(" archivos · ").Append(receipts.Count).Append(" resultados registrados</p></div><button class=\"print\" data-print type=\"button\">Imprimir informe</button></header>");
         RenderEnvironment(html, context);
-        html.Append("<section class=\"metrics\" aria-label=\"Resumen del lote\"><div class=\"metric\"><strong>").Append(total).Append("</strong><span>Archivos del lote</span>");
+        html.Append("<section class=\"metrics\" aria-label=\"Resumen del lote\"><div class=\"metric\"><strong>").Append(total).Append("</strong> <span>Archivos del lote</span>");
         if (pending.Count > 0) html.Append("<small>").Append(pending.Count).Append(" sin cierre registrado</small>");
         html.Append("</div>");
         foreach (var outcome in Outcomes)
         {
             var count = receipts.Count(r => r.Assessment.Outcome == outcome) + (outcome == Outcome.Unknown ? pending.Count : 0);
-            html.Append("<div class=\"metric\"><strong>").Append(count).Append("</strong><span>").Append(Plurals[(int)outcome]).Append("</span></div>");
+            html.Append("<div class=\"metric\"><strong>").Append(count).Append("</strong> <span>").Append(Plurals[(int)outcome]).Append("</span></div>");
         }
         html.Append("</section><section aria-labelledby=\"results-title\"><div class=\"section-title\"><h2 id=\"results-title\">Resultados por archivo</h2><p id=\"visible-count\" aria-live=\"polite\">").Append(total).Append(" de ").Append(total).Append(" archivos</p></div><div class=\"tools\"><div class=\"filters\" role=\"group\" aria-label=\"Filtrar por resultado\"><button type=\"button\" data-filter=\"\" aria-pressed=\"true\">Todos</button>");
         foreach (var outcome in Outcomes)
@@ -42,7 +42,7 @@ public static class HtmlReport
         html.Append("</tbody></table><p id=\"empty\" class=\"empty\" hidden>No hay archivos que coincidan con la búsqueda.</p></div><p class=\"uncertainty\"><strong>Sin confirmación</strong> significa que no hay evidencia suficiente para afirmar aceptación o rechazo. Verificar el estado con el registro antes de reenviar.</p></section><section aria-labelledby=\"audit-title\"><div class=\"section-title\"><h2 id=\"audit-title\">Detalle de las transacciones</h2><p>Identificadores, acuses y hallazgos originales</p></div><div class=\"audit-list\">");
         foreach (var receipt in receipts) RenderAudit(html, receipt, timezone);
         foreach (var transaction in pending) RenderPendingAudit(html, transaction, timezone);
-        html.Append("</div></section><footer class=\"footer\"><span>Informe de uso interno. Puede contener información sensible del servicio.</span><span>Los motivos originales se conservan en el detalle y en el diario JSONL.</span></footer></main><script>")
+        html.Append("</div></section><footer class=\"footer\"><span>Informe de uso interno. Puede contener información sensible del servicio.</span> <span>Los motivos originales se conservan en el detalle y en el diario JSONL.</span></footer></main><script>")
             .Append(Asset("report.js")).Append("</script></body></html>");
         var settings = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.Read };
         if (!OperatingSystem.IsWindows()) settings.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
@@ -54,9 +54,9 @@ public static class HtmlReport
     private static void RenderEnvironment(StringBuilder html, ReportContext? context)
     {
         html.Append("<div class=\"environment").Append(context?.IsSimulation == true ? "" : " external").Append("\">");
-        if (context is null) html.Append("<strong>Origen no registrado</strong><span>Este diario no incluye información del entorno de ejecución.</span>");
-        else if (context.IsSimulation) html.Append("<strong>Simulación local</strong><span>Respuestas de prueba. Este lote no se envió al registro externo.</span>");
-        else html.Append("<strong>").Append(Encode(context.EnvironmentName)).Append("</strong><span>").Append(Encode(context.Host ?? "Servicio externo")).Append("</span>");
+        if (context is null) html.Append("<strong>Origen no registrado</strong> <span>Este diario no incluye información del entorno de ejecución.</span>");
+        else if (context.IsSimulation) html.Append("<strong>Simulación local</strong> <span>Respuestas de prueba. Este lote no se envió al registro externo.</span>");
+        else html.Append("<strong>").Append(Encode(context.EnvironmentName)).Append("</strong> <span>").Append(Encode(context.Host ?? "Servicio externo")).Append("</span>");
         html.Append("</div>");
     }
 
@@ -65,24 +65,27 @@ public static class HtmlReport
         var assessment = receipt.Assessment;
         html.Append("<tr data-status=\"").Append(assessment.Outcome).Append("\" data-search=\"")
             .Append(Encode(Search(receipt))).Append("\"><td class=\"file\"><a href=\"#tx-").Append(receipt.Id)
-            .Append("\" data-audit=\"tx-").Append(receipt.Id).Append("\">").Append(Encode(receipt.FileName)).Append("</a><small>Archivo ")
-            .Append(index.ToString("D2", CultureInfo.InvariantCulture)).Append("</small></td><td>");
+            .Append("\" data-audit=\"tx-").Append(receipt.Id).Append("\">").Append(Encode(receipt.FileName)).Append("</a> <small>Archivo ")
+            .Append(index.ToString("D2", CultureInfo.InvariantCulture)).Append("</small></td> <td>");
         Status(html, assessment.Outcome);
-        html.Append("</td><td class=\"reason\">").Append(Encode(ReportText.Summary(assessment)));
+        html.Append("</td> <td class=\"reason\">").Append(Encode(ReportText.Summary(assessment)));
         if (assessment.Findings is { Count: > 0 } findings)
-            html.Append("<small>").Append(findings.Count).Append(findings.Count == 1 ? " hallazgo del servicio" : " hallazgos del servicio").Append(" · Ver detalle</small>");
-        html.Append("</td><td class=\"ack\">").Append(Encode(assessment.AcknowledgmentCode ?? "—"))
-            .Append("</td><td class=\"duration\">").Append(Duration(receipt.CompletedAt - receipt.StartedAt)).Append("</td></tr>");
+            html.Append(" <small>").Append(findings.Count).Append(findings.Count == 1 ? " hallazgo del servicio" : " hallazgos del servicio")
+                .Append(" · <a href=\"#tx-").Append(receipt.Id).Append("\" data-audit=\"tx-").Append(receipt.Id)
+                .Append("\" aria-controls=\"tx-").Append(receipt.Id).Append("\" aria-label=\"")
+                .Append(Encode("Ver detalle de " + receipt.FileName)).Append("\">Ver detalle</a></small>");
+        html.Append("</td> <td class=\"ack\">").Append(Encode(assessment.AcknowledgmentCode ?? "—"))
+            .Append("</td> <td class=\"duration\">").Append(Duration(receipt.CompletedAt - receipt.StartedAt)).Append("</td></tr>");
     }
 
     private static void RenderPendingRow(StringBuilder html, PendingTransaction transaction, int index)
     {
         html.Append("<tr data-status=\"Unknown\" data-search=\"").Append(Encode(Search(transaction)))
             .Append("\"><td class=\"file\"><a href=\"#tx-").Append(transaction.Id).Append("\" data-audit=\"tx-")
-            .Append(transaction.Id).Append("\">").Append(Encode(transaction.FileName)).Append("</a><small>Archivo ")
-            .Append(index.ToString("D2", CultureInfo.InvariantCulture)).Append(" · Sin cierre</small></td><td>");
+            .Append(transaction.Id).Append("\">").Append(Encode(transaction.FileName)).Append("</a> <small>Archivo ")
+            .Append(index.ToString("D2", CultureInfo.InvariantCulture)).Append(" · Sin cierre</small></td> <td>");
         Status(html, Outcome.Unknown);
-        html.Append("</td><td class=\"reason\">El envío comenzó, pero no se registró su resultado.</td><td class=\"ack\">—</td><td class=\"duration\">—</td></tr>");
+        html.Append("</td> <td class=\"reason\">El envío comenzó, pero no se registró su resultado.</td> <td class=\"ack\">—</td> <td class=\"duration\">—</td></tr>");
     }
 
     private static void RenderAudit(StringBuilder html, Receipt receipt, TimeZoneInfo timezone)
@@ -128,7 +131,7 @@ public static class HtmlReport
     private static void RenderPendingAudit(StringBuilder html, PendingTransaction transaction, TimeZoneInfo timezone)
     {
         OpenAudit(html, transaction.Id, transaction.FileName, Outcome.Unknown, Search(transaction));
-        html.Append("<p class=\"diagnostic\"><strong>Sin cierre registrado</strong>Hay un evento de inicio, pero no una respuesta persistida. La entrega es incierta.</p><dl class=\"audit-grid\">");
+        html.Append("<p class=\"diagnostic\"><strong>Sin cierre registrado</strong> Hay un evento de inicio, pero no una respuesta persistida. La entrega es incierta.</p><dl class=\"audit-grid\">");
         Entry(html, "Transacción", transaction.Id.ToString());
         Entry(html, "MSH-10 · ID del mensaje", transaction.MessageId ?? "No disponible");
         Entry(html, "Inicio", LocalTime(transaction.StartedAt, timezone));
@@ -140,7 +143,7 @@ public static class HtmlReport
     {
         html.Append("<details id=\"tx-").Append(id).Append("\" data-status=\"").Append(outcome).Append("\" data-search=\"")
             .Append(Encode(search)).Append("\"><summary><span class=\"name\">").Append(Encode(fileName))
-            .Append("</span><span class=\"transaction\">").Append(id.ToString()[..8]).Append("</span>");
+            .Append("</span> ");
         Status(html, outcome);
         html.Append("</summary><div class=\"audit-content\">");
     }
