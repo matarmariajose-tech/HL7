@@ -1,57 +1,111 @@
-# Decisiones de arquitectura
+# Arquitectura
+
+La solución separa la interpretación de respuestas, la coordinación del lote y el acceso a servicios y archivos. La consola crea los componentes y conecta sus dependencias.
+
+## Dependencias entre proyectos
+
+Cada flecha representa una referencia de proyecto: el origen depende del destino.
 
 ```mermaid
-flowchart LR
-    CLI[Consola] --> APP[Aplicación: BatchProcessor]
-    APP --> DOMAIN[Dominio: Assessment y ACK]
-    INFRA[Infraestructura: HTTP y JSONL] --> APP
-    INFRA --> DOMAIN
+flowchart TD
+    CLI[Cli]
+    INFRA[Infrastructure]
+    APP[Application]
+    DOMAIN[Domain]
+
     CLI --> INFRA
-    INFRA --> API[echo y send]
+    CLI --> APP
+    INFRA --> APP
+    INFRA --> DOMAIN
+    APP --> DOMAIN
+
+    classDef layer fill:#f6f8fa,stroke:#9aa9b5,color:#24292f,stroke-width:1px
+    class CLI,INFRA,APP,DOMAIN layer
 ```
 
-La aplicación depende de puertos definidos en su propia capa. El dominio no conoce rutas, JSON, archivos ni credenciales. La consola compone dependencias sin un contenedor de inyección: el número de componentes no justifica añadir un framework.
+| Proyecto | Responsabilidad | Componentes principales |
+| --- | --- | --- |
+| `Domain` | Interpretar ACK y representar resultados | `AcknowledgmentInterpreter`, `Assessment`, `Receipt` |
+| `Application` | Coordinar intentos y definir sus contratos | `BatchProcessor`, `IRegistryGateway`, `ITransactionJournal` |
+| `Infrastructure` | Implementar transporte, entrada, auditoría e informes | `HttpRegistryGateway`, `InputReader`, `JsonJournal`, `HtmlReport` |
+| `Cli` | Leer configuración y componer la ejecución | `Program` |
 
-## Transacción e incertidumbre
+Los puertos de envío y auditoría pertenecen a `Application`. Infraestructura los implementa; el caso de uso trabaja contra esas interfaces. El dominio se mantiene independiente de HTTP, JSON y almacenamiento.
 
-El UUID identifica un intento local. MSH-10 pertenece al mensaje clínico y se preserva; SHA-256 registra integridad de los bytes originales. La correlación exige exactamente un MSA y coincidencia de MSA-2. Los identificadores repetidos no provocan deduplicación implícita.
+## Recorrido de un envío
 
-La auditoría se confirma en disco antes del efecto externo y después de la respuesta. No existe transacción distribuida entre el registro y el sistema de archivos. Un corte puede dejar un intento pendiente, que exige reconciliación humana. Se elige envío secuencial para limitar carga y simplificar trazabilidad de ocho documentos.
+La consola carga la configuración y las credenciales, comprueba `echo` y lee el lote. Por cada archivo se ejecuta esta secuencia:
 
-Un HTTP 200 no equivale a aceptación. Un HTTP 500 tampoco demuestra rechazo clínico: el registro pudo procesar el documento antes del fallo intermediario. Los acuses de commit no se elevan a aceptación de aplicación. No se configuran reintentos de POST ni políticas que puedan duplicar inmunizaciones.
+```mermaid
+sequenceDiagram
+    participant A as BatchProcessor
+    participant J as Diario JSONL
+    participant H as Adaptador HTTP
+    participant R as API de pruebas
 
-## Seguridad y límites
+    A->>J: Persistir Pending
+    J-->>A: Confirmación en disco
+    A->>H: Enviar Submission
+    H->>R: POST send
 
-Los mensajes y las respuestas se mantienen fuera de logs de consola. El informe contiene identificadores y motivos del registro que pueden incluir datos sensibles, por lo que se excluye de Git y requiere almacenamiento con acceso restringido y política de retención institucional. El diario no guarda el mensaje completo ni el ACK crudo.
+    alt Respuesta HTTP
+        R-->>H: Respuesta del servicio
+        H->>H: Evaluar contrato y ACK
+        H-->>A: Assessment
+    else Fallo de comunicación
+        H-->>A: DeliveryException
+        A->>A: Construir resultado sin confirmación
+    end
 
-Las credenciales se leen de variables de entorno, y las redirecciones HTTP están deshabilitadas. El transporte exige HTTPS fuera del simulador local y conserva verificación TLS. Los límites de tamaño y tiempo son configurables. No se hacen llamadas a endpoints fuera del echo y send configurados.
+    A->>J: Persistir Completed
+    J-->>A: Confirmación en disco
+```
 
-El lector admite archivos UTF-8, conserva saltos de línea y no normaliza el payload de forma silenciosa. Otros juegos de caracteres requieren una decisión explícita y pruebas adicionales. Los ERR se conservan como hallazgos; no se intenta corregir clínicamente el mensaje ni reinterpretar reglas del registro.
+El ACK se interpreta en `AcknowledgmentInterpreter`, invocado por el adaptador. El resultado vuelve al caso de uso y se registra antes de continuar con el siguiente archivo. Al finalizar, la consola genera el informe HTML. También puede regenerarlo a partir del diario, sin nuevas llamadas al servicio.
 
-## Evolución prevista
+## Identidades y correlación
 
-El contrato REST v1 confirmado se encapsula en DTO de infraestructura y pruebas de transporte. Si aumenta el volumen, se puede sustituir JSONL por almacenamiento transaccional mediante el puerto de auditoría. Antes de añadir concurrencia o reintentos se necesita acordar idempotencia con el proveedor.
+Cada identificador tiene una función propia:
 
-La demo demuestra la integración local y las decisiones de clasificación. No prueba la compatibilidad del contrato externo ni afirma resultados reales del registro.
+| Dato | Función | Tratamiento |
+| --- | --- | --- |
+| Credenciales de API | Autenticar la conexión HTTP Basic | `ApiCredentials`, recibidas explícitamente por la fábrica del cliente |
+| Credenciales de transferencia | Autenticar las operaciones del registro | `TransferCredentials`, incluidas en el cuerpo del contrato |
+| OID de clínica | Identificar la clínica de la solicitud | `ClinicIdentity`; no reemplaza los establecimientos dentro del HL7 |
+| UUID del intento | Identificar una ejecución local | Se conserva entre `Pending` y `Completed` |
+| MSH-10 | Correlacionar el mensaje con el ACK | Debe coincidir con MSA-2 |
+| `messageId` de la API | Facilitar el seguimiento con el proveedor | Se registra como `ServiceMessageId` |
+| SHA-256 del archivo | Comprobar la integridad de la entrada | Se calcula sobre los bytes originales |
 
-## Presentación y trazabilidad
+Los ocho archivos originales comparten MSH-10. Esa coincidencia no fusiona transacciones: cada archivo conserva su intento y su respuesta. Tampoco se utiliza el hash como una regla de deduplicación clínica.
 
-El HTML es una proyección del diario, no una fuente de resultados. El renderer recibe el resultado clasificado y códigos de motivo tipados para presentar diagnósticos internos en español. Los motivos originales y los hallazgos del registro se conservan en el detalle. La compatibilidad con diarios anteriores reconoce exclusivamente los mensajes internos conocidos; nunca reclasifica una respuesta por su texto.
+## Decisiones de operación
 
-El contexto de ejecución se registra antes del primer intento y distingue una simulación del servicio externo. Los estilos y el comportamiento están separados del renderer como recursos embebidos: el informe final sigue siendo un único archivo utilizable sin red.
+| Decisión | Motivo | Comportamiento verificable |
+| --- | --- | --- |
+| Envíos secuenciales | Mantener el orden y controlar la carga de ocho documentos | Un intento termina antes de comenzar el siguiente |
+| Auditoría previa al envío | Conservar evidencia antes del efecto externo | Si falla `Pending`, no se llama al registro |
+| Sin reintentos automáticos | Evitar duplicaciones cuando la entrega es incierta | Un timeout no dispara otro POST |
+| Fallos de entrega tipados | Mantener HTTP fuera del caso de uso | El adaptador traduce errores esperados a `DeliveryException` |
+| Cancelación diferenciada | Separar una decisión del usuario de un vencimiento del plazo | Un intento activo queda sin confirmación; los siguientes no comienzan |
+| Límites de entrada y respuesta | Acotar recursos antes de aceptar un lote | Se comprueban cantidad y bytes; un único plazo cubre envío y lectura |
 
-## Identidades y fallos de entrega
+Un error HTTP no determina un rechazo clínico. Un acuse de commit tampoco demuestra aceptación de aplicación. La clasificación exige interpretar la respuesta y verificar su correlación.
 
-HTTP Basic utiliza `ApiCredentials`. La solicitud de transferencia utiliza `RegistryCredentials`, que compone `ClinicIdentity` y `TransferCredentials`. El cliente HTTP recibe la identidad de API explícitamente desde la consola; el adaptador no consulta variables de entorno para descubrirla. El OID de la clínica en el sobre JSON y los identificadores de establecimiento del HL7 cumplen funciones distintas y se preservan por separado.
+No existe una transacción distribuida entre el servicio y el archivo de auditoría. Un corte puede dejar un `Pending` sin cierre. Ese intento necesita reconciliación; la solución no garantiza entrega exactamente una vez. Los errores de persistencia y los defectos inesperados detienen la ejecución.
 
-El UUID de intento, MSH-10, el identificador de la API y el hash del archivo tampoco se intercambian. Uno identifica la ejecución local, otro permite correlacionar el ACK, otro facilita consultar al proveedor y el último comprueba integridad. Compartir MSH-10 o contenido no implica que dos intentos sean la misma transacción.
+## Informes y diagnóstico
 
-`DeliveryException` define el fallo esperado del puerto de envío. Infraestructura traduce timeout, problemas de conexión e interrupciones de lectura; la aplicación los registra como incertidumbre. La cancelación del usuario sigue su propio camino. Un defecto de programación no se convierte silenciosamente en un resultado del registro.
+El diario conserva los eventos de cada intento. El HTML presenta sus resultados con estados y diagnósticos internos en español; los mensajes originales del registro permanecen disponibles en el detalle. El renderer no clasifica respuestas ni cambia resultados.
 
-## Capacidad y diagnóstico
+La evidencia nueva incluye estado HTTP, tipo de contenido, tamaño, huellas y forma aparente de `result`. La forma sirve para diagnóstico y no reemplaza la interpretación del ACK. Los cuerpos completos no se almacenan. Los informes pueden contener información sensible y se mantienen fuera de Git, con acceso restringido.
 
-La entrada se limita por cantidad de archivos, tamaño individual y suma de bytes. Se verifica antes de enviar y durante la lectura para detectar crecimiento de archivos. El lote permanece en memoria dentro de esos límites; no se presenta como un procesamiento de volumen ilimitado. El presupuesto de entrada no equivale a un límite estricto de memoria total: las cadenas, las respuestas y el HTML también consumen memoria.
+El contexto del lote identifica una simulación y la zona horaria del informe. Un diario anterior sin ese contexto se muestra con origen no registrado. Los estilos y el comportamiento son recursos embebidos: el HTML funciona sin servidor ni conexiones externas.
 
-Cada solicitud tiene un único plazo compartido por envío y lectura. Los cuerpos se leen hasta el límite configurado. La evidencia de respuesta conserva tamaños y huellas, el tipo declarado y una descripción de su forma aparente. Esa forma no determina la clasificación: la decisión sigue perteneciendo al intérprete de ACK. Los errores JSON conservan solamente un nombre de campo conocido, no fragmentos del contenido recibido.
+## Alcance y evolución
 
-Los metadatos nuevos no recuperan cuerpos descartados en ejecuciones anteriores ni reemplazan la consulta al operador cuando el resultado es incierto. También requieren el tratamiento restringido de los demás identificadores de auditoría.
+El lote se mantiene en memoria y tiene límites configurables. El presupuesto de entrada no representa el consumo total del proceso: las cadenas, respuestas e informes también ocupan memoria. El lector acepta UTF-8 e implementa el subconjunto de ACK necesario para esta integración.
+
+Para un volumen sostenido, los cambios siguientes serían lectura por flujo y almacenamiento transaccional detrás del puerto de auditoría. Antes de incorporar concurrencia o reintentos, se necesita acordar idempotencia y reconciliación con el proveedor.
+
+Los parámetros y procedimientos están en [Operación](operations.md). Las comprobaciones ejecutadas y sus límites están en [Validación](validation.md).
