@@ -1,0 +1,10 @@
+{
+  "BaseUrl": "https://test-prxcloud.praxisemr.com/",
+  "EchoPath": "floridashot/api/v1/FloridaShots/echo",
+  "SendPath": "floridashot/api/v1/FloridaShots/send",
+  "TimeoutSeconds": 30,
+  "MaxInputBytes": 1048576,
+  "MaxResponseBytes": 1048576,
+  "UseBasicAuthentication": true,
+  "AllowLoopbackHttp": false
+}

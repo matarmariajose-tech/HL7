@@ -1,0 +1,10 @@
+{
+  "BaseUrl": "http://127.0.0.1:5080/",
+  "EchoPath": "echo",
+  "SendPath": "send",
+  "TimeoutSeconds": 2,
+  "MaxInputBytes": 1048576,
+  "MaxResponseBytes": 1048576,
+  "UseBasicAuthentication": false,
+  "AllowLoopbackHttp": true
+}

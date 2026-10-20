@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Immunization.Domain/Immunization.Domain.csproj" />
+    <ProjectReference Include="../Immunization.Application/Immunization.Application.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "dependencies": {
+    "net8.0": {
+      "immunization.application": {
+        "type": "Project",
+        "dependencies": {
+          "Immunization.Domain": "[1.0.0, )"
+        }
+      },
+      "immunization.domain": {
+        "type": "Project"
+      },
+      "immunization.infrastructure": {
+        "type": "Project",
+        "dependencies": {
+          "Immunization.Application": "[1.0.0, )",
+          "Immunization.Domain": "[1.0.0, )"
+        }
+      }
+    }
+  }
+}
