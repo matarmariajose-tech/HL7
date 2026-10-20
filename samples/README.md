@@ -1,0 +1,1 @@
+Colocar aquí los ocho archivos originales recibidos para la prueba. Los archivos `.hl7` se excluyen de Git deliberadamente. El programa los lee sin modificarlos; no publicar mensajes clínicos ni informes de transacciones.

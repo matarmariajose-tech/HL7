@@ -1,0 +1,9 @@
+.git
+**/bin
+**/obj
+reports
+.env*
+.secrets
+config/live.json
+samples/*.hl7
+artifacts
