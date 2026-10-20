@@ -67,6 +67,16 @@ public sealed class AcknowledgmentTests
     }
 
     [Fact]
+    public void MshFieldNumberingIncludesTheFieldSeparator()
+    {
+        var message = new Hl7("MSH*$%!?*SOURCE*SITE***20260101**ACK$V04*control*T*2.5.1\r");
+        var header = Assert.Single(message.Segments("MSH"));
+        Assert.Equal("*", message.Field(header, 1));
+        Assert.Equal("$%!?", message.Field(header, 2));
+        Assert.Equal("control", message.MessageId);
+    }
+
+    [Fact]
     public void MissingSourceDoesNotInferRejectionFromPatientOrVaccine() =>
         Assert.Equal(Outcome.Unknown, interpreter.Interpret(Ack("AA"), null).Outcome);
 }

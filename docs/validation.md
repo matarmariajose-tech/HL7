@@ -6,7 +6,7 @@ Validación realizada el 20 de octubre de 2026 en Linux x64, con SDK .NET 8.0.42
 
 - Restauración NuGet en modo `--locked-mode`: correcta.
 - Compilación Release de los seis proyectos: cero errores y cero advertencias.
-- Suite xUnit: **54 pruebas aprobadas, 0 fallidas, 0 omitidas**.
+- Suite xUnit: **55 pruebas aprobadas, 0 fallidas, 0 omitidas**.
 - Demo HTTP autocontenida: ocho transacciones verificadas y finalización correcta del servidor.
 - Demo con los ocho originales: ocho transacciones verificadas; los hashes de los archivos no cambiaron.
 

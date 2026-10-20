@@ -25,6 +25,7 @@ public sealed class Hl7
     public IEnumerable<string[]> Segments(string name) => segments.Where(x => x[0] == name);
     public string Field(string[] segment, int index)
     {
+        if (segment[0] == "MSH" && index == 1) return separator.ToString();
         var offset = segment[0] == "MSH" ? index - 1 : index;
         return offset >= 0 && offset < segment.Length ? segment[offset] : "";
     }
