@@ -1,4 +1,4 @@
-# Envío de inmunizaciones HL7
+# Envío de Inmunizaciones HL7
 
 Aplicación de consola en C# y .NET 8 para enviar mensajes VXU, interpretar los acuses del registro y consultar el resultado de cada transacción. Utiliza los endpoints `echo` y `send` de la API de pruebas.
 
