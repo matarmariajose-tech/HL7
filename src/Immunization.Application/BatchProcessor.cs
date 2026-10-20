@@ -22,9 +22,9 @@ public sealed class BatchProcessor(IRegistryGateway gateway, ITransactionJournal
             await journal.RecordPendingAsync(submission, started, cancellationToken);
             Assessment assessment;
             try { assessment = await gateway.SendAsync(submission, cancellationToken); }
-            catch (OperationCanceledException) { assessment = new(Outcome.Unknown, "Request cancelled; delivery may have occurred. Do not retry automatically."); }
-            catch (IOException) { assessment = new(Outcome.Unknown, "Response stream failed; delivery may have occurred. Do not retry automatically."); }
-            catch (HttpRequestException) { assessment = new(Outcome.Unknown, "Transport failed; delivery may have occurred. Do not retry automatically."); }
+            catch (OperationCanceledException) { assessment = new(Outcome.Unknown, "Request cancelled; delivery may have occurred. Do not retry automatically.", ReasonCode: AssessmentReason.RequestCancelled); }
+            catch (IOException) { assessment = new(Outcome.Unknown, "Response stream failed; delivery may have occurred. Do not retry automatically.", ReasonCode: AssessmentReason.ResponseStreamFailure); }
+            catch (HttpRequestException) { assessment = new(Outcome.Unknown, "Transport failed; delivery may have occurred. Do not retry automatically.", ReasonCode: AssessmentReason.TransportFailure); }
             var receipt = new Receipt(submission.Id, submission.FileName, submission.Sha256, submission.MessageId,
                 started, clock.GetUtcNow(), assessment);
             await journal.RecordCompletedAsync(receipt, CancellationToken.None);

@@ -2,5 +2,7 @@
   <ItemGroup>
     <ProjectReference Include="../Immunization.Domain/Immunization.Domain.csproj" />
     <ProjectReference Include="../Immunization.Application/Immunization.Application.csproj" />
+    <EmbeddedResource Include="Reporting/report.css" />
+    <EmbeddedResource Include="Reporting/report.js" />
   </ItemGroup>
 </Project>

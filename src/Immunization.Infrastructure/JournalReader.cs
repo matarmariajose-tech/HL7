@@ -5,13 +5,14 @@ using Immunization.Domain;
 namespace Immunization.Infrastructure;
 
 public sealed record PendingTransaction(Guid Id, string FileName, string Sha256, string? MessageId, DateTimeOffset StartedAt);
-public sealed record JournalSnapshot(IReadOnlyList<Receipt> Completed, IReadOnlyList<PendingTransaction> Pending);
+public sealed record JournalSnapshot(IReadOnlyList<Receipt> Completed, IReadOnlyList<PendingTransaction> Pending, ReportContext? Context = null);
 
 public static class JournalReader
 {
     public static JournalSnapshot Read(string path)
     {
         var options = new JsonSerializerOptions { Converters = { new JsonStringEnumConverter() } };
+        ReportContext? context = null;
         var pending = new Dictionary<Guid, PendingTransaction>();
         var completed = new List<Receipt>();
         var completedIds = new HashSet<Guid>();
@@ -21,6 +22,12 @@ public static class JournalReader
             var root = entry.RootElement;
             switch (root.GetProperty("State").GetString())
             {
+                case "Batch":
+                    if (context is not null || pending.Count > 0 || completed.Count > 0)
+                        throw new InvalidDataException("Batch context must precede transaction events.");
+                    context = root.GetProperty("Context").Deserialize<ReportContext>(options)
+                        ?? throw new InvalidDataException("Missing batch context.");
+                    break;
                 case "Pending":
                     var started = root.Deserialize<PendingTransaction>(options) ?? throw new InvalidDataException("Invalid pending event.");
                     if (completedIds.Contains(started.Id) || !pending.TryAdd(started.Id, started))
@@ -36,6 +43,6 @@ public static class JournalReader
                 default: throw new InvalidDataException("Unsupported journal event.");
             }
         }
-        return new(completed, pending.Values.OrderBy(x => x.StartedAt).ToArray());
+        return new(completed, pending.Values.OrderBy(x => x.StartedAt).ToArray(), context);
     }
 }

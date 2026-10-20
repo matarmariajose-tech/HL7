@@ -7,7 +7,7 @@ if (args.Length == 3 && args[0] == "report")
     try
     {
         var snapshot = JournalReader.Read(args[1]);
-        await HtmlReport.WriteAsync(args[2], snapshot.Completed, CancellationToken.None, snapshot.Pending);
+        await HtmlReport.WriteAsync(args[2], snapshot.Completed, CancellationToken.None, snapshot.Pending, snapshot.Context);
         Console.WriteLine($"Restricted HTML report: {args[2]}");
         return 0;
     }
@@ -38,9 +38,10 @@ try
     Console.WriteLine("Echo: service returned the documented echoBack response.");
     if (args[0] == "echo") return 0;
     var submissions = await InputReader.ReadAsync(args[2], options.MaxInputBytes, cancellation.Token);
-    using var journal = new JsonJournal(args[3]);
+    var context = new ReportContext(options.EnvironmentName, options.IsSimulation, options.ReportTimeZoneId, new Uri(options.BaseUrl).Host);
+    using var journal = new JsonJournal(args[3], context);
     var receipts = await new BatchProcessor(gateway, journal, TimeProvider.System).RunAsync(submissions, cancellation.Token);
-    await HtmlReport.WriteAsync(args[3] + ".html", receipts, CancellationToken.None);
+    await HtmlReport.WriteAsync(args[3] + ".html", receipts, CancellationToken.None, context: context);
     foreach (var receipt in receipts) Console.WriteLine($"{receipt.Id} {receipt.Assessment.Outcome}");
     foreach (var group in receipts.GroupBy(x => x.Assessment.Outcome)) Console.WriteLine($"{group.Key}: {group.Count()}");
     Console.WriteLine($"Completed: {receipts.Count}/{submissions.Count}. Restricted report: {args[3]}");

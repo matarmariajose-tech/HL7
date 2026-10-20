@@ -46,15 +46,15 @@ public sealed class HttpRegistryGateway(HttpClient client, RegistryOptions optio
         using var request = new HttpRequestMessage(HttpMethod.Post, options.SendPath) { Content = JsonContent.Create(payload) };
         using var response = await client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, cancellationToken);
         if (!response.IsSuccessStatusCode)
-            return new(Outcome.Unknown, $"HTTP {(int)response.StatusCode}; no verified application acknowledgment. Delivery may have occurred.");
+            return new(Outcome.Unknown, $"HTTP {(int)response.StatusCode}; no verified application acknowledgment. Delivery may have occurred.", ReasonCode: AssessmentReason.HttpFailure, HttpStatusCode: (int)response.StatusCode);
         string body;
         try { body = await ReadBoundedAsync(response, cancellationToken); }
-        catch (InvalidDataException) { return new(Outcome.Unknown, "Service response exceeds configured size limit."); }
+        catch (InvalidDataException) { return new(Outcome.Unknown, "Service response exceeds configured size limit.", ReasonCode: AssessmentReason.ResponseTooLarge); }
         SendResponse? envelope;
         try { envelope = JsonSerializer.Deserialize<SendResponse>(body); }
-        catch (JsonException) { return new(Outcome.Unknown, "Service response does not match the documented JSON contract."); }
+        catch (JsonException) { return new(Outcome.Unknown, "Service response does not match the documented JSON contract.", ReasonCode: AssessmentReason.InvalidResponseEnvelope); }
         var assessment = interpreter.Interpret(envelope?.Result ?? "", submission.MessageId);
-        return assessment with { ServiceMessageId = envelope?.MessageId };
+        return assessment with { ServiceMessageId = envelope?.MessageId, HttpStatusCode = (int)response.StatusCode };
     }
     private async Task<string> ReadBoundedAsync(HttpResponseMessage response, CancellationToken token)
     {

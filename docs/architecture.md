@@ -33,3 +33,9 @@ El lector admite archivos UTF-8, conserva saltos de línea y no normaliza el pay
 El contrato REST v1 confirmado se encapsula en DTO de infraestructura y pruebas de transporte. Si aumenta el volumen, se puede sustituir JSONL por almacenamiento transaccional mediante el puerto de auditoría. Antes de añadir concurrencia o reintentos se necesita acordar idempotencia con el proveedor.
 
 La demo demuestra la integración local y las decisiones de clasificación. No prueba la compatibilidad del contrato externo ni afirma resultados reales del registro.
+
+## Presentación y trazabilidad
+
+El HTML es una proyección del diario, no una fuente de resultados. El renderer recibe el resultado clasificado y códigos de motivo tipados para presentar diagnósticos internos en español. Los motivos originales y los hallazgos del registro se conservan en el detalle. La compatibilidad con diarios anteriores reconoce exclusivamente los mensajes internos conocidos; nunca reclasifica una respuesta por su texto.
+
+El contexto de ejecución se registra antes del primer intento y distingue una simulación del servicio externo. Los estilos y el comportamiento están separados del renderer como recursos embebidos: el informe final sigue siendo un único archivo utilizable sin red.

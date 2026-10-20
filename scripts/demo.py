@@ -1,4 +1,7 @@
 import argparse
+from datetime import datetime, timezone
+from string import Template
+from uuid import uuid4
 import hashlib
 import json
 import os
@@ -21,9 +24,11 @@ with tempfile.TemporaryDirectory(prefix="immunization-demo-") as directory:
     input_directory = args.input.resolve() if args.input else Path(directory) / "input"
     if not args.input:
         input_directory.mkdir()
-        fixture = (root / "demo/fixture.hl7").read_bytes()
+        fixture = Template((root / "demo/message.hl7.template").read_bytes().decode("utf-8"))
         for index in range(8):
-            (input_directory / f"message-{index + 1:02}.hl7").write_bytes(fixture)
+            message = fixture.substitute(messageId=uuid4().hex, patientId=f"DEMO-{index + 1:04}",
+                                         timestamp=datetime.now(timezone.utc).strftime("%Y%m%d%H%M%S%z"))
+            (input_directory / f"message-{index + 1:02}.hl7").write_bytes(message.encode("utf-8"))
     files = sorted(input_directory.glob("*.hl7"))
     if len(files) != 8:
         raise RuntimeError("This demonstration expects eight input files.")
@@ -62,12 +67,19 @@ with tempfile.TemporaryDirectory(prefix="immunization-demo-") as directory:
             completed = [entry["Receipt"] for entry in entries if entry["State"] == "Completed"]
             outcomes = [entry["Assessment"]["Outcome"] for entry in completed]
             expected = ["Accepted", "Observed", "Rejected", "Unknown", "Unknown", "Unknown", "Unknown", "Accepted"]
-            if outcomes != expected or len(entries) != len(files) * 2:
+            if outcomes != expected or len([entry for entry in entries if entry["State"] != "Batch"]) != len(files) * 2:
                 raise RuntimeError(f"Unexpected transaction report: {outcomes}")
             if len({entry["Id"] for entry in completed}) != len(files):
                 raise RuntimeError("Transaction identifiers are not unique.")
             if before != {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in files}:
                 raise RuntimeError("Input files changed.")
+            context = entries[0]
+            if context["State"] != "Batch" or not context["Context"]["IsSimulation"]:
+                raise RuntimeError("Simulation context is missing from the journal.")
+            html_report = Path(str(report) + ".html")
+            if "Simulación local" not in html_report.read_text():
+                raise RuntimeError("The report does not identify the simulated run.")
+            print(f"HTML report: {html_report}")
             print("DEMO VERIFIED: eight simulated responses, correlated report, unchanged input bytes.")
         finally:
             server.terminate()

@@ -21,9 +21,9 @@ public sealed class RecoveryTests
             Assert.Equal(submission.Id, Assert.Single(snapshot.Pending).Id);
             await HtmlReport.WriteAsync(report, snapshot.Completed, default, snapshot.Pending);
             var html = await File.ReadAllTextAsync(report);
-            Assert.Contains("Unknown · Pending", html);
-            Assert.Contains("0 transacciones completadas", html);
-            Assert.Contains("Intentos sin cierre: 1", html);
+            Assert.Contains("Sin cierre registrado", html);
+            Assert.Contains("0 resultados registrados", html);
+            Assert.Contains("1 sin cierre registrado", html);
             Assert.DoesNotContain(submission.Content, html);
         }
         finally { File.Delete(path); File.Delete(report); }

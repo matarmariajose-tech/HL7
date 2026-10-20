@@ -7,6 +7,9 @@ public sealed record RegistryOptions
     public required string BaseUrl { get; init; }
     public required string EchoPath { get; init; }
     public required string SendPath { get; init; }
+    public string EnvironmentName { get; init; } = "Servicio externo";
+    public bool IsSimulation { get; init; }
+    public string ReportTimeZoneId { get; init; } = "America/Argentina/Buenos_Aires";
     public int TimeoutSeconds { get; init; } = 30;
     public long MaxInputBytes { get; init; } = 1048576;
     public int MaxResponseBytes { get; init; } = 1048576;
@@ -33,6 +36,9 @@ public sealed record RegistryOptions
             throw new InvalidDataException("Only echo and send endpoints are allowed.");
         if (options.TimeoutSeconds is < 1 or > 300 || options.MaxInputBytes < 1 || options.MaxResponseBytes < 1)
             throw new InvalidDataException("Invalid resource limits.");
+        try { _ = TimeZoneInfo.FindSystemTimeZoneById(options.ReportTimeZoneId); }
+        catch (Exception ex) when (ex is TimeZoneNotFoundException or InvalidTimeZoneException)
+        { throw new InvalidDataException("Invalid report timezone.", ex); }
         return options;
     }
 }

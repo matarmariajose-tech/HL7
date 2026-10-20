@@ -81,7 +81,7 @@ public sealed class SafetyTests
         {
             await HtmlReport.WriteAsync(path, [receipt], default);
             var html = await File.ReadAllTextAsync(path);
-            Assert.DoesNotContain("<script>", html);
+            Assert.DoesNotContain("<script>alert(1)</script>", html);
             Assert.DoesNotContain("<img src=x", html);
             Assert.Contains("&lt;script&gt;", html);
             Assert.Contains("Rejected", html);

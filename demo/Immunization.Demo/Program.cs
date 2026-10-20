@@ -24,8 +24,8 @@ app.MapPost("/send", (SendRequest request) =>
     var response = $"MSH|^~\\&|DEMO|LOCAL|||{DateTimeOffset.UtcNow:yyyyMMddHHmmss}||ACK^V04^ACK|{Guid.NewGuid():N}|T|2.5.1\rMSA|{code}|{id}\r";
     response += scenario switch
     {
-        "observed" => "ERR||RXA^1^5|103^Table value not found^HL70357|W|||Review vaccine coding.\r",
-        "rejected" => "ERR||RXA^1^5|101^Required field missing^HL70357|E|||Vaccine code required.\r",
+        "observed" => "ERR||RXA^1^5|103^Table value not found^HL70357|W|||Revisar la codificación de la vacuna.\r",
+        "rejected" => "ERR||RXA^1^5|101^Required field missing^HL70357|E|||Falta el código de la vacuna.\r",
         _ => ""
     };
     return Results.Json(new SendResponse(Guid.NewGuid(), response), statusCode: 201);

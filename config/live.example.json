@@ -6,5 +6,8 @@
   "MaxInputBytes": 1048576,
   "MaxResponseBytes": 1048576,
   "UseBasicAuthentication": true,
-  "AllowLoopbackHttp": false
+  "AllowLoopbackHttp": false,
+  "EnvironmentName": "API de pruebas",
+  "IsSimulation": false,
+  "ReportTimeZoneId": "America/Argentina/Buenos_Aires"
 }

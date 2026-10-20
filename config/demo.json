@@ -6,5 +6,8 @@
   "MaxInputBytes": 1048576,
   "MaxResponseBytes": 1048576,
   "UseBasicAuthentication": false,
-  "AllowLoopbackHttp": true
+  "AllowLoopbackHttp": true,
+  "EnvironmentName": "Simulador local",
+  "IsSimulation": true,
+  "ReportTimeZoneId": "America/Argentina/Buenos_Aires"
 }

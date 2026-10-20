@@ -9,12 +9,22 @@ public sealed class JsonJournal : ITransactionJournal, IDisposable
 {
     private readonly FileStream stream;
     private readonly JsonSerializerOptions options = new() { Converters = { new JsonStringEnumConverter() } };
-    public JsonJournal(string path)
+    public JsonJournal(string path, ReportContext? context = null)
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
         var settings = new FileStreamOptions { Mode = FileMode.CreateNew, Access = FileAccess.Write, Share = FileShare.Read };
         if (!OperatingSystem.IsWindows()) settings.UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite;
         stream = new FileStream(path, settings);
+        if (context is not null)
+        {
+            try
+            {
+                JsonSerializer.Serialize(stream, new { State = "Batch", Context = context }, options);
+                stream.Write("\n"u8);
+                stream.Flush(true);
+            }
+            catch { stream.Dispose(); throw; }
+        }
     }
     public Task RecordPendingAsync(Submission submission, DateTimeOffset startedAt, CancellationToken cancellationToken) =>
         AppendAsync(new { State = "Pending", submission.Id, submission.FileName, submission.Sha256, submission.MessageId, StartedAt = startedAt }, cancellationToken);

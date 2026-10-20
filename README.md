@@ -25,7 +25,7 @@ Para usar los ocho archivos originales, copiarlos a `samples/` sin alterar sus b
 python3 scripts/demo.py --input samples
 ```
 
-Los archivos originales y los informes se excluyen de Git. La demo incluye un mensaje sintético independiente para poder ejecutarse después de clonar el repositorio.
+Los archivos originales y los informes se excluyen de Git. La demo genera ocho mensajes sintéticos desde una plantilla, con identificadores e integridad propios para cada archivo. Puede ejecutarse después de clonar el repositorio.
 
 ## Ejecución manual de la demo
 
@@ -97,7 +97,7 @@ El adaptador utiliza DTO tipados y nombres JSON explícitos del Swagger: `clinic
 
 Echo recibe `user` y `password` y valida `echoBack`. Tanto echo como send usan HTTP Basic además de las credenciales de transferencia en el cuerpo. No se concatenan manualmente documentos JSON ni se interpretan cadenas arbitrarias como ACK.
 
-Las rutas, URL base, timeout y límites de tamaño son configuración. `TimeoutSeconds`, `MaxInputBytes` y `MaxResponseBytes` limitan tiempo y tamaño. HTTPS es obligatorio fuera de loopback. No se siguen redirecciones ni se desactiva la validación TLS. La configuración rechaza rutas ajenas a echo y send.
+Las rutas, URL base, timeout y límites de tamaño son configuración. `EnvironmentName`, `IsSimulation` y `ReportTimeZoneId` definen el contexto del informe; la zona horaria predeterminada es `America/Argentina/Buenos_Aires` y las fechas UTC originales se conservan para auditoría. `TimeoutSeconds`, `MaxInputBytes` y `MaxResponseBytes` limitan tiempo y tamaño. HTTPS es obligatorio fuera de loopback. No se siguen redirecciones ni se desactiva la validación TLS. La configuración rechaza rutas ajenas a echo y send.
 
 ## Clasificación
 
@@ -119,9 +119,11 @@ Los ocho originales comparten MSH-10. Cada archivo conserva ese valor y recibe u
 
 ## Informe y recuperación
 
-`reports/*.jsonl` contiene un evento `Pending` persistido **antes** del envío y un evento `Completed` con resultado, motivo, hallazgos y timestamps UTC. Cada línea es JSON independiente. El archivo se crea con acceso exclusivo de creación y permisos `0600` en Unix; los ACL de Windows dependen del directorio del usuario.
+`reports/*.jsonl` conserva el contexto del lote y contiene un evento `Pending` persistido **antes** del envío y un evento `Completed` con resultado, motivo, hallazgos y timestamps UTC. Cada línea es JSON independiente. El archivo se crea con acceso exclusivo de creación y permisos `0600` en Unix; los ACL de Windows dependen del directorio del usuario.
 
-Además del diario JSONL, cada ejecución completa genera un informe HTML restringido en `<informe.jsonl>.html`, con archivo, resultado, motivo, hallazgos y trazabilidad. El contenido del servicio se escapa antes de generar HTML.
+Además del diario JSONL, cada ejecución completa genera un informe HTML restringido en `<informe.jsonl>.html`, con archivo, resultado, motivo, hallazgos y trazabilidad. El informe presenta un resumen del lote, una tabla con estado y motivo por archivo, búsqueda y filtros por resultado. Los identificadores, fechas UTC, hashes y hallazgos originales quedan en detalles desplegables. Los estados y diagnósticos internos se presentan en español; los mensajes originales del registro se conservan sin traducir ni reinterpretar. El HTML incluye sus estilos y comportamiento, no requiere servidor ni conexiones externas y permite imprimir el informe completo.
+
+El contenido del servicio se escapa antes de generar HTML. La demo se identifica explícitamente como **Simulación local**. Cada diario nuevo comienza con un evento `Batch` que conserva el entorno, su carácter simulado y la zona horaria de presentación. Los diarios anteriores siguen siendo legibles; si no contienen ese contexto, el informe muestra «Origen no registrado». La ausencia de metadatos no se interpreta como una ejecución real.
 
 Para generar una vista de un diario existente sin conectarse a la API:
 
